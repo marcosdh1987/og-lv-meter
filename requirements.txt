@@ -1,0 +1,8 @@
+autoflake==1.7.7
+black==22.3.0
+isort==5.0.3
+pylint==2.6.0
+pymodbus==3.1.0
+pyModbusTCP==0.2.0
+ipykernel
+numpy
