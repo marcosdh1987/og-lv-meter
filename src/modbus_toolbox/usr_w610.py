@@ -4,6 +4,8 @@ from pymodbus.constants import Endian
 from pymodbus.payload import BinaryPayloadBuilder
 from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ModbusIOException  # Import the exception
+from pymodbus.exceptions import ConnectionException
+import pymodbus.client as ModbusClient
 from utils.logger import Logger
 import numpy as np
 
@@ -11,18 +13,29 @@ import numpy as np
 class UsrW610:
     _instance = None
 
-    def __new__(cls, ip_address, port):
+    def __new__(cls, connection_type='TCP', ip_address=None, port=None, serial_port=None, baudrate=9600):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._initialize(ip_address, port)
+            cls._instance._initialize(connection_type, ip_address, port, serial_port, baudrate)
         return cls._instance
 
-    def _initialize(self, ip_address, port):
+    def _initialize(self, connection_type, ip_address, port, serial_port, baudrate):
         self.logger = Logger(name="UsrW610")._set_logger()
-        self.ip_address = ip_address
-        self.port = port
-        self.client = ModbusTcpClient(host=ip_address, port=port, auto_open=True, auto_close=True)
-        self._test_connection()
+        self.connection_type = connection_type
+        if connection_type == 'TCP':
+            self.client = ModbusClient.ModbusTcpClient(ip_address, port=port)
+        elif connection_type == 'Serial':
+            self.client = ModbusClient.ModbusSerialClient(
+                method='rtu',
+                port=serial_port,
+                baudrate=baudrate,
+                bytesize=8,
+                parity='N',
+                stopbits=1
+            )
+        else:
+            self.logger.error(f"Unsupported connection type: {connection_type}")
+            raise ValueError("Unsupported connection type")
 
     def _test_connection(self, max_attempts=3):
         """
@@ -36,9 +49,11 @@ class UsrW610:
         """
         for attempt in range(1, max_attempts + 1):
             try:
-                self.client.connect()
-                self.logger.info(f"Successful connection attempt {attempt}")
-                return True
+                if self.client.connect():
+                    self.logger.info(f"Successful connection attempt {attempt}")
+                    return True
+                else:
+                    raise Exception("Connection attempt failed")
             except Exception as e:
                 self.logger.error(f"Failed connection attempt {attempt}: {e}")
                 if attempt < max_attempts:
@@ -47,10 +62,22 @@ class UsrW610:
         self.logger.error("Failed to establish connection after multiple attempts")
         return False
     
+    def connect(self):
+        try:
+            if self.client.connect():
+                self.logger.info("Connection successful")
+                return True
+            else:
+                self.logger.error("Failed to connect")
+                return False
+        except ConnectionException as e:
+            self.logger.error(f"Connection failed: {e}")
+            return False
+
     def close_connection(self):
         """Close the Modbus TCP connection."""
-        if self.client.is_socket_open():
-            self.client.close()
+        self.client.close()
+        self.logger.info("Connection closed")
 
     def read_register_raw(self, start_reg, length=36):
         """
@@ -73,6 +100,39 @@ class UsrW610:
             self.logger.error(f"Failed to read registers: {e}")
             return None
 
+    def read_analog_inputs(self):
+        """
+        Read analog input registers.
+
+        Returns:
+            dict: Dictionary containing values of IN1 and IN2 from both possible register addresses.
+        """
+        result = {}
+        try:
+            # Reading IN1 from the first possible address
+            in1_first = self.client.read_holding_registers(40000, 1)  # Adjusted address for IN1
+            result['IN1_first'] = in1_first.registers if in1_first.isError() == False else None
+
+            # Reading IN1 from the second possible address
+            in1_second = self.client.read_holding_registers(40064, 1)  # Adjusted address for IN1
+            result['IN1_second'] = in1_second.registers if in1_second.isError() == False else None
+
+            # Reading IN2 from the first possible address
+            in2_first = self.client.read_holding_registers(40001, 1)  # Adjusted address for IN2
+            result['IN2_first'] = in2_first.registers if in2_first.isError() == False else None
+
+            # Reading IN2 from the second possible address
+            in2_second = self.client.read_holding_registers(40065, 1)  # Adjusted address for IN2
+            result['IN2_second'] = in2_second.registers if in2_second.isError() == False else None
+
+        except ModbusIOException as e:
+            self.logger.error(f"Modbus IO Error: {e}")
+            return None
+        except Exception as e:
+            self.logger.error(f"Failed to read registers: {e}")
+            return None
+
+        return result
 
     def write_random_values(self, start_reg, end_reg):
         """
