@@ -1,9 +1,11 @@
 import struct
 import time
+
 from pymodbus.constants import Endian
 from pymodbus.payload import BinaryPayloadBuilder
 from pyModbusTCP.client import ModbusClient
-from utils.logger import Logger
+
+from modbus_adv_toolbox.utils.logger import Logger
 
 
 class GenericPLC:
@@ -19,13 +21,22 @@ class GenericPLC:
         self.logger = Logger(name="GenericPLC")._set_logger()
         self.ip_address = ip_address
         self.port = port
-        self.client = ModbusClient(host=ip_address, port=port, auto_open=True, auto_close=True)
+        self.client = ModbusClient(
+            host=ip_address, port=port, auto_open=True, auto_close=True
+        )
         self._test_connection()
+
+    def update_ip_and_port(self, new_ip_address, new_port):
+        self.ip_address = new_ip_address
+        self.port = new_port
+        self.client = ModbusClient(
+            host=new_ip_address, port=new_port, auto_open=True, auto_close=True
+        )
 
     def _test_connection(self, max_attempts=3):
         """
         Test the connection to the PLC.
-        
+
         Args:
             max_attempts (int): Maximum number of connection attempts.
 
@@ -45,11 +56,10 @@ class GenericPLC:
         self.logger.error("Failed to establish connection after multiple attempts")
         return False
 
-
     def read_plc_register_raw(self, start_reg, length=36):
         """
         Read raw PLC registers.
-        
+
         Args:
             start_reg (int): Start register address.
             length (int): Number of registers to read.
@@ -66,9 +76,13 @@ class GenericPLC:
         regs_to_write = builder.to_registers()
         result = self.client.write_multiple_registers(register, regs_to_write)
         if result:
-            self.logger.info(f"Valor {value} escrito en el PLC, registros {register} y {register + 1}")
+            self.logger.info(
+                f"Valor {value} escrito en el PLC, registros {register} y {register + 1}"
+            )
         else:
-            self.logger.info(f"Error al escribir el valor {value} en el PLC, registros {register} y {register + 1}")
+            self.logger.info(
+                f"Error al escribir el valor {value} en el PLC, registros {register} y {register + 1}"
+            )
 
     def write_plc_register(self, start_reg, values):
         builder = BinaryPayloadBuilder(byteorder=Endian.Big, wordorder=Endian.Little)
@@ -104,12 +118,15 @@ class GenericPLC:
                 regs_l = regs_l[::-1]
                 for i in range(0, length, 2):
                     data.append(self.regs2float(regs_l[i : i + 2]))
+                self.logger.info(f"Registros leídos del PLC ok")
                 break
             except Exception as e:
                 self.logger.info(f"Intento {attempts + 1} de lectura fallido: {e}")
                 attempts += 1
                 time.sleep(1)
         if attempts == max_attempts:
-            self.logger.info(f"No se pudo leer los registros del PLC después de {max_attempts} intentos.")
+            self.logger.info(
+                f"No se pudo leer los registros del PLC después de {max_attempts} intentos."
+            )
             return None
         return data
