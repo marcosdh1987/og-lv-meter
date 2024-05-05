@@ -71,7 +71,7 @@ class GenericPLC:
         return regs_l
 
     def write_single_float(self, register, value):
-        builder = BinaryPayloadBuilder(byteorder=Endian.Big, wordorder=Endian.Little)
+        builder = BinaryPayloadBuilder(byteorder=Endian.Big, wordorder=Endian.Big)
         builder.add_32bit_float(value)
         regs_to_write = builder.to_registers()
         result = self.client.write_multiple_registers(register, regs_to_write)
