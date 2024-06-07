@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="modbus_adv_toolbox",
-    version="0.0.1",
+    version="0.2.0",
     author="Marcos E Soto",
     author_email="marcos.esteban.soto@gmail.com",
     description="LLM Bench Toolbox",
