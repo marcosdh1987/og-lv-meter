@@ -2,7 +2,8 @@ import logging
 
 from pymodbus.client.sync import ModbusTcpClient
 from pymodbus.exceptions import ConnectionException, ModbusIOException
-
+from pymodbus.payload import BinaryPayloadDecoder
+from pymodbus.constants import Endian
 
 class UsrW610:
     _instance = None
@@ -78,3 +79,23 @@ class UsrW610:
         except Exception as e:
             self.logger.error(f"Failed to read input registers: {e}")
             return None
+        
+    def decode_register(registers):
+        decoder = BinaryPayloadDecoder.fromRegisters(registers, byteorder=Endian.Little, wordorder=Endian.Big)
+        return decoder.decode_32bit_float()
+
+    def decode_register_cdab(self, registers):
+        decoder = BinaryPayloadDecoder.fromRegisters(registers, byteorder=Endian.Big, wordorder=Endian.Little)
+        return decoder.decode_32bit_float()
+    
+    def read_vega_values(self, unit=1):
+        pv_registers = self.read_input_register(start_reg=106, length=2, unit=unit)
+        sp_registers = self.read_input_register(start_reg=110, length=2, unit=unit)
+        tv_registers = self.read_input_register(start_reg=114, length=2, unit=unit)
+        qv_registers = self.read_input_register(start_reg=118, length=2, unit=unit)
+        pv = self.decode_register_cdab(pv_registers)
+        sp = self.decode_register_cdab(sp_registers)
+        tv = self.decode_register_cdab(tv_registers)
+        qv = self.decode_register_cdab(qv_registers)
+        return pv, sp, tv, qv
+        
