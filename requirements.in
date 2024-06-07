@@ -1,0 +1,8 @@
+autoflake
+black
+isort
+pylint
+pymodbus
+pyModbusTCP
+ipykernel
+numpy

@@ -1,14 +1,22 @@
 SHELL=/bin/bash
 PATH := .venv/bin:$(PATH)
-PYTHON_VERSION = 3.9
+PYTHON_VERSION = 3.7
 export ENV=dev
 
 install:
 	@( \
-		if [ ! -d .venv ]; then python3 -m venv --copies .venv; fi; \
+		if ! command -v pyenv &> /dev/null; then \
+			echo "pyenv is not installed. Please install pyenv first."; \
+			exit 1; \
+		fi; \
+		if ! pyenv versions --bare | grep -q "^$(PYTHON_VERSION)$$"; then \
+			echo "Python $(PYTHON_VERSION) is not installed via pyenv. Installing..."; \
+			pyenv install $(PYTHON_VERSION); \
+		fi; \
+		PYENV_VERSION=$(PYTHON_VERSION) pyenv exec python -m venv --copies .venv; \
 		source .venv/bin/activate; \
 		pip install -qU pip; \
-		pip install -r requirements.txt; \
+		pip install -r requirements.in; \
 	)
 
 autoflake:

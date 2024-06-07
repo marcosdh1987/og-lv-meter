@@ -58,7 +58,7 @@ class GenericPLC:
 
     def read_plc_register_raw(self, start_reg, length=36):
         """
-        Read raw PLC registers.
+        Read a list of registers from the PLC. by default, it reads 36 registers.
 
         Args:
             start_reg (int): Start register address.
