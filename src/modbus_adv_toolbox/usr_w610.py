@@ -1,23 +1,40 @@
 import logging
+
 from pymodbus.client.sync import ModbusTcpClient
+from pymodbus.constants import Endian
 from pymodbus.exceptions import ConnectionException, ModbusIOException
 from pymodbus.payload import BinaryPayloadDecoder
-from pymodbus.constants import Endian
+
 
 class UsrW610:
     _instance = None
 
-    def __new__(cls, connection_type="TCP", ip_address=None, port=None, serial_port=None, baudrate=9600):
+    def __new__(
+        cls,
+        connection_type="TCP",
+        ip_address=None,
+        port=None,
+        serial_port=None,
+        baudrate=9600,
+        retries=2,
+    ):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._initialize(connection_type, ip_address, port, serial_port, baudrate)
+            cls._instance._initialize(
+                connection_type, ip_address, port, serial_port, baudrate, retries
+            )
         return cls._instance
 
-    def _initialize(self, connection_type, ip_address, port, serial_port, baudrate):
+    def _initialize(
+        self, connection_type, ip_address, port, serial_port, baudrate, retries
+    ):
+        self.retries = retries
         self.logger = logging.getLogger("UsrW610")
         self.logger.setLevel(logging.INFO)
         handler = logging.StreamHandler()
-        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
 
@@ -33,7 +50,9 @@ class UsrW610:
             self.logger.error("Cannot update IP and Port for non-TCP connection")
             return
         else:
-            self.client = ModbusTcpClient(host=new_ip_address, port=new_port, auto_open=True, auto_close=True)
+            self.client = ModbusTcpClient(
+                host=new_ip_address, port=new_port, auto_open=True, auto_close=True
+            )
 
     def connect(self):
         try:
@@ -67,27 +86,30 @@ class UsrW610:
             return None
 
     def decode_register_cdab(self, registers):
-        decoder = BinaryPayloadDecoder.fromRegisters(registers, byteorder=Endian.Big, wordorder=Endian.Little)
+        decoder = BinaryPayloadDecoder.fromRegisters(
+            registers, byteorder=Endian.Big, wordorder=Endian.Little
+        )
         return decoder.decode_32bit_float()
-    
-    def read_register_with_retries(self, start_reg, length=2, unit=1, retries=2):
-        for attempt in range(retries):
+
+    def read_register_with_retries(self, start_reg, length=2, unit=1):
+        for attempt in range(self.retries):
             result = self.read_input_register(start_reg, length, unit)
             if result is not None:
                 return result
-            self.logger.warning(f"Attempt {attempt + 1} failed for register {start_reg}. Retrying...")
-        self.logger.error(f"Failed to read register {start_reg} after {retries} attempts.")
+            self.logger.warning(
+                f"Attempt {attempt + 1} failed for register {start_reg}. Retrying..."
+            )
+        self.logger.error(
+            f"Failed to read register {start_reg} after {self.retries} attempts."
+        )
         return None
 
     def read_vega_values(self, unit=1):
-        pv_registers = self.read_register_with_retries(start_reg=106, length=2, unit=unit)
-        sp_registers = self.read_register_with_retries(start_reg=110, length=2, unit=unit)
-        tv_registers = self.read_register_with_retries(start_reg=114, length=2, unit=unit)
-        qv_registers = self.read_register_with_retries(start_reg=118, length=2, unit=unit)
+        registers = self.read_register_with_retries(start_reg=106, length=14, unit=unit)
 
-        pv = self.decode_register_cdab(pv_registers) if pv_registers else None
-        sp = self.decode_register_cdab(sp_registers) if sp_registers else None
-        tv = self.decode_register_cdab(tv_registers) if tv_registers else None
-        qv = self.decode_register_cdab(qv_registers) if qv_registers else None
+        pv = self.decode_register_cdab(registers[0:2]) if registers else None
+        sp = self.decode_register_cdab(registers[4:6]) if registers else None
+        tv = self.decode_register_cdab(registers[8:10]) if registers else None
+        qv = self.decode_register_cdab(registers[12:14]) if registers else None
 
         return [pv, sp, tv, qv]

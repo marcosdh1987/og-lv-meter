@@ -1,6 +1,5 @@
 import time
 
-
 from modbus_adv_toolbox.utils.logger import Logger
 
 
