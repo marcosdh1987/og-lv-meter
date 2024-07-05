@@ -99,15 +99,9 @@ class WenlenPLC:
             self.logger.error(f"Failed to read discrete inputs: {e}")
             return None
 
-    def read_boolean_registers(self, start_reg=10001, count=32):
-        first_values = []
-        for i in range(count):
-            discrete_input = self.read_discrete_inputs(start_reg=i, count=8)
-            if discrete_input is not None:
-                first_values.append(discrete_input[0])
-            else:
-                first_values.append(None)
-        return first_values
+    def read_boolean_registers(self, start_reg=0, count=32):
+        discrete_input = self.read_discrete_inputs(start_reg=0, count=count)
+        return discrete_input
     
     def combine_registers_to_floats(self, registers):
         floats = []
