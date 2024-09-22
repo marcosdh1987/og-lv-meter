@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  ubuntupython:
+    build: .
+    container_name: UbuntuPythonContainer
+    ports:
+      - "8080:80"
+    volumes:
+      - ./data:/VolumeData
+    tty: true

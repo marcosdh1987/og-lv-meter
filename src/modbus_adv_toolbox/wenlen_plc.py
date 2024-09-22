@@ -113,9 +113,9 @@ class WenlenPLC:
                 floats.append(None)
         return floats
 
-    def read_holding_registers_values(self):
+    def read_holding_registers_values(self, count=4):
         holding_values = []
-        for i in range(8):
+        for i in range(count*2):
             holding_register = self.read_holding_registers(start_reg=i, length=1)
             if holding_register is not None:
                 holding_values.append(holding_register[0])
@@ -124,7 +124,7 @@ class WenlenPLC:
         return holding_values
     
     def read_float_registers(self, start_reg=40001, count=4):
-        holding_registers = self.read_holding_registers_values()
+        holding_registers = self.read_holding_registers_values(count=count)
         float_registers = self.combine_registers_to_floats(holding_registers)
         return float_registers
     
