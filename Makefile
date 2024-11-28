@@ -43,7 +43,7 @@ docs:
 
 #create a test rtu device
 create-rtu:
-	@docker run --name modbus-server -p 5020:5020 -d oitc/modbus-server
+	@docker run --name modbus-server-2 -p 5020:5020 -d oitc/modbus-server
 
 
 # This command will generate the exact requirements.txt file needed to build the Docker image in the CI/CD pipeline.

@@ -123,7 +123,7 @@ class WenlenPLC:
                 holding_values.append(None)
         return holding_values
     
-    def read_float_registers(self, start_reg=40001, count=4):
+    def read_float_registers(self, start_reg=40001, count=8):
         holding_registers = self.read_holding_registers_values(count=count)
         float_registers = self.combine_registers_to_floats(holding_registers)
         return float_registers
