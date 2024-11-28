@@ -110,10 +110,10 @@ class WenlenPLC:
                 combined_value = float(f"{registers[i]}.{registers[i+1]:02d}")
                 floats.append(combined_value)
             else:
-                floats.append(None)
+                floats.append(0)
         return floats
 
-    def read_holding_registers_values(self, count=4):
+    def read_holding_registers_values(self, count=8):
         holding_values = []
         for i in range(count*2):
             holding_register = self.read_holding_registers(start_reg=i, length=1)
