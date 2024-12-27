@@ -3,7 +3,7 @@ from pymodbus.client.sync import ModbusTcpClient
 from pymodbus.exceptions import ConnectionException, ModbusIOException
 
 class WenlenPLC:
-    def __init__(self, ip_address, port, retries=2):
+    def __init__(self, ip_address, port, retries=2, simulation=False):
         self.retries = retries
         self.logger = logging.getLogger("WenlenPLC")
         self.logger.setLevel(logging.DEBUG)
@@ -11,6 +11,7 @@ class WenlenPLC:
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
+        self.simulation = simulation
 
         self.client = ModbusTcpClient(ip_address, port=port)
 
@@ -100,7 +101,13 @@ class WenlenPLC:
             return None
 
     def read_boolean_registers(self, start_reg=0, count=32):
-        discrete_input = self.read_discrete_inputs(start_reg=0, count=count)
+        """Read boolean values from discrete inputs (10001-19999)"""
+        #check if simulation is enabled
+        if self.simulation:
+            self.logger.info("Simulation enabled, reading discrete inputs instead of coils")
+            discrete_input = self.read_coils(start_reg=0, count=count)
+        else:
+            discrete_input = self.read_discrete_inputs(start_reg=0, count=count)
         return discrete_input
     
     def combine_registers_to_floats(self, registers):
@@ -178,3 +185,54 @@ class WenlenPLC:
         except Exception as e:
             self.logger.error(f"Failed to write discrete inputs: {e}")
             return False
+
+    def write_boolean_registers(self, start_reg, values, unit=1):
+        """Write boolean values to coils (1-9999) that map to discrete inputs (10001-19999)"""
+        try:
+            # Map start_reg from discrete input (10001-19999) to coil (1-9999) address
+            coil_start = start_reg - 10001 + 1  # Convert from discrete input to coil address
+            
+            self.logger.debug(f"Writing {len(values)} boolean values to coils starting at {coil_start}")
+            result = self.client.write_coils(coil_start, values, unit=unit)
+            
+            if not result.isError():
+                self.logger.info(f"Successfully wrote boolean values to coils starting at {coil_start}")
+                return True
+                
+            self.logger.error(f"Failed to write boolean values: {result}")
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"Failed to write boolean values: {e}")
+            return False
+
+    def write_single_boolean(self, reg, value, unit=1):
+        """Write single boolean value to coil (0-9998)"""
+        try:
+            # Use direct coil addressing (0-based)
+            coil_addr = 0  # Write to first coil
+            self.logger.debug(f"Writing single boolean value {value} to coil {coil_addr}")
+            result = self.client.write_coil(coil_addr, value, unit=unit)
+            if not result.isError():
+                self.logger.info(f"Successfully wrote {value} to coil {coil_addr}")
+                return True
+            return False
+        except Exception as e:
+            self.logger.error(f"Failed to write boolean: {e}")
+            return False
+
+    def read_single_boolean(self, reg, unit=1):
+        """Read single boolean value from discrete input (10001-19999)"""
+        try:
+            # Use same address as write
+            addr = 0  # Read from first discrete input
+            self.logger.debug(f"Reading discrete input at {addr}")
+            result = self.client.read_discrete_inputs(addr, 1, unit=unit)
+            if not result.isError():
+                value = result.bits[0]
+                self.logger.info(f"Read value {value} from discrete input {addr}")
+                return value
+            return None
+        except Exception as e:
+            self.logger.error(f"Failed to read boolean: {e}")
+            return None
